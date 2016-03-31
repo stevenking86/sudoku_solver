@@ -1,19 +1,23 @@
 <h1>Sudoku</h1>
 
 <%= form_tag solve_it_path do  %>
+<table id="input-board">
+  <tr>
   <%n=1%>
   <%9.times do%>
-  <p><%= number_field_tag n.to_s,nil, within: 1...10 %>
-  <%= number_field_tag (n+1).to_s,nil, within: 1...10 %>
-  <%= number_field_tag (n+2).to_s,nil, within: 1...10 %> |
-  <%= number_field_tag (n+3).to_s,nil, within: 1...10 %>
-  <%= number_field_tag (n+4).to_s,nil, within: 1...10 %>
-  <%= number_field_tag (n+5).to_s,nil, within: 1...10 %> |
-  <%= number_field_tag (n+6).to_s,nil, within: 1...10 %>
-  <%= number_field_tag (n+7).to_s,nil, within: 1...10 %>
-  <%= number_field_tag (n+8).to_s,nil, within: 1...10 %></p>
+  <td><%= number_field_tag n.to_s,nil, within: 1...10 %></td>
+  <td><%= number_field_tag (n+1).to_s,nil, within: 1...10 %></td>
+  <td><%= number_field_tag (n+2).to_s,nil, within: 1...10 %></td>
+  <td><%= number_field_tag (n+3).to_s,nil, within: 1...10 %></td>
+  <td><%= number_field_tag (n+4).to_s,nil, within: 1...10 %></td>
+  <td><%= number_field_tag (n+5).to_s,nil, within: 1...10 %></td>
+  <td><%= number_field_tag (n+6).to_s,nil, within: 1...10 %></td>
+  <td><%= number_field_tag (n+7).to_s,nil, within: 1...10 %></td>
+  <td><%= number_field_tag (n+8).to_s,nil, within: 1...10 %></td>
   <%n+=9%>
+  </tr>
   <%end%>
-
- <p> <%= submit_tag "Solve it!"%> </p>
+</table>
+<br>
+<%= submit_tag "Solve it!"%>
 <%end%>

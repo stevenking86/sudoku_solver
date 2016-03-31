@@ -22,12 +22,12 @@ class Solver < ActiveRecord::Base
     !line.include? num
   end
 
-  def self.build_single_possibility_hash(puzzle)
+  def self.build_possibility_hash(puzzle, single_switch=true)
 
     transposed_puzzle = transpose_puzzle(puzzle)
     boxed_puzzle = box_puzzle(puzzle)
 
-    single_possibility_hash = {}
+    possibility_hash = {}
 
 
     puzzle.each_with_index do |row, row_index|
@@ -42,34 +42,7 @@ class Solver < ActiveRecord::Base
             can_put_in_col = checker(num, transposed_puzzle[col_index])
 
             # determine box index to plug in to checker to check box
-            if (0..2).cover?(row_index)
-              case col_index
-              when (0..2)
-                box_index = 0
-              when (3..5)
-                box_index = 1
-              when (6..8)
-                box_index = 2
-              end
-            elsif (3..5).cover?(row_index)
-              case col_index
-              when (0..2)
-                box_index = 3
-              when (3..5)
-                box_index = 4
-              when (6..8)
-                box_index = 5
-              end
-            elsif (6..8).cover?(row_index)
-              case col_index
-              when (0..2)
-                box_index = 6
-              when (3..5)
-                box_index = 7
-              when (6..8)
-                box_index = 8
-              end
-            end
+            box_index = get_box_index(row_index, col_index)
 
             can_put_in_box = checker(num, boxed_puzzle[box_index])
 
@@ -77,82 +50,25 @@ class Solver < ActiveRecord::Base
               possibilities << num
             end #if
           end #do
-
-          if possibilities.length == 1
-            single_possibility_hash[[row_index, col_index]] = possibilities[0]
+          if single_switch == true
+            if possibilities.length == 1
+              possibility_hash[[row_index, col_index]] = possibilities[0]
+            end
+          else
+            possibility_hash[[row_index, col_index]] = possibilities
           end
 
         end #if square = "-"
       end
     end
-    single_possibility_hash
-  end
-
-  def self.build_unique_hash(puzzle)
-
-    transposed_puzzle = transpose_puzzle(puzzle)
-    boxed_puzzle = box_puzzle(puzzle)
-
-    unique_possibility_hash = {}
-
-
-    puzzle.each_with_index do |row, row_index|
-      row.each_with_index do |square, col_index|
-
-        if square == "-"
-          possibilities = []
-
-          (1..9).each do |num|
-
-            can_put_in_row = checker(num, row)
-            can_put_in_col = checker(num, transposed_puzzle[col_index])
-
-            # determine box index to plug in to checker to check box
-            if (0..2).cover?(row_index)
-              case col_index
-              when (0..2)
-                box_index = 0
-              when (3..5)
-                box_index = 1
-              when (6..8)
-                box_index = 2
-              end
-            elsif (3..5).cover?(row_index)
-              case col_index
-              when (0..2)
-                box_index = 3
-              when (3..5)
-                box_index = 4
-              when (6..8)
-                box_index = 5
-              end
-            elsif (6..8).cover?(row_index)
-              case col_index
-              when (0..2)
-                box_index = 6
-              when (3..5)
-                box_index = 7
-              when (6..8)
-                box_index = 8
-              end
-            end
-
-            can_put_in_box = checker(num, boxed_puzzle[box_index])
-
-            if can_put_in_box && can_put_in_col && can_put_in_row
-              possibilities << num
-            end #if
-          end #do
-
-          unique_possibility_hash[[row_index, col_index]] = possibilities
-
-        end #if square = "-"
-      end
+    if single_switch == true
+      return possibility_hash
+    else
+      unique_array = hash_rows(possibility_hash)
+      unique_array += hash_cols(possibility_hash)
+      unique_array += hash_boxes(possibility_hash)
+      return unique(unique_array)
     end
-    unique_array = hash_rows(unique_possibility_hash)
-    unique_array += hash_cols(unique_possibility_hash)
-    unique_array += hash_boxes(unique_possibility_hash)
-    final_hash = unique(unique_array)
   end
 
 
@@ -257,17 +173,12 @@ class Solver < ActiveRecord::Base
     # box 0 = subhash of all elements where 0 < row < 2 and 0 < col < 2
     # box 1 = subhash of all elements where 0 < row < 2 and 3 < col < 5
     # etc
-    boxes[0] = hash.select {|k,v| (0..2).cover?(k[0]) && (0..2).cover?(k[1])}
-    boxes[1] = hash.select {|k,v| (0..2).cover?(k[0]) && (3..5).cover?(k[1])}
-    boxes[2] = hash.select {|k,v| (0..2).cover?(k[0]) && (6..8).cover?(k[1])}
+    (0..8).each do |box_num|
+      boxes[box_num] = hash.select do |k,v|
+        box_num == get_box_index(k[0],k[1])
+      end
+    end
 
-    boxes[3] = hash.select {|k,v| (3..5).cover?(k[0]) && (0..2).cover?(k[1])}
-    boxes[4] = hash.select {|k,v| (3..5).cover?(k[0]) && (3..5).cover?(k[1])}
-    boxes[5] = hash.select {|k,v| (3..5).cover?(k[0]) && (6..8).cover?(k[1])}
-
-    boxes[6] = hash.select {|k,v| (6..8).cover?(k[0]) && (0..2).cover?(k[1])}
-    boxes[7] = hash.select {|k,v| (6..8).cover?(k[0]) && (3..5).cover?(k[1])}
-    boxes[8] = hash.select {|k,v| (6..8).cover?(k[0]) && (6..8).cover?(k[1])}
     boxes
   end
 
@@ -301,7 +212,6 @@ class Solver < ActiveRecord::Base
   def self.recursive_solve(puzzle, blanks)
     # base case
     if solved?(puzzle)
-      p "solved"
       return puzzle
     end
 
@@ -332,16 +242,8 @@ class Solver < ActiveRecord::Base
 
   end
 
-
-  def self.all_checks_ok(puzzle, num, row, col)
-
-    if checker(num, puzzle[row]) == false
-      return false
-    end
-    if checker(num, transpose_puzzle(puzzle)[col]) == false
-      return false
-    end
-    box_index = [
+  def self.get_box_index(row, col)
+    [
       [0, 0, 0, 1, 1, 1, 2, 2, 2],
       [0, 0, 0, 1, 1, 1, 2, 2, 2],
       [0, 0, 0, 1, 1, 1, 2, 2, 2],
@@ -352,6 +254,18 @@ class Solver < ActiveRecord::Base
       [6, 6, 6, 7, 7, 7, 8, 8, 8],
       [6, 6, 6, 7, 7, 7, 8, 8, 8]
     ][row][col]
+  end
+
+
+  def self.all_checks_ok(puzzle, num, row, col)
+
+    if checker(num, puzzle[row]) == false
+      return false
+    end
+    if checker(num, transpose_puzzle(puzzle)[col]) == false
+      return false
+    end
+    box_index = get_box_index(row, col)
 
     if  checker(num, box_puzzle(puzzle)[box_index]) == false
       return false
@@ -365,17 +279,16 @@ class Solver < ActiveRecord::Base
   def self.solve(puzzle_string)
     puzzle = build_puzzle(puzzle_string)
     begin
-      possibilities = build_single_possibility_hash(puzzle)
+      possibilities = build_possibility_hash(puzzle)
       # if there's anything in the possibilities hash
       if !possibilities.empty?
         answer_pusher(puzzle, possibilities)
       else
         if solved?(puzzle)
           puts pretty_board(puzzle)
-          p "Yay! We did it!"
           return puzzle
         else
-          next_attempt = build_unique_hash(puzzle)
+          next_attempt = build_possibility_hash(puzzle, false)
           if !next_attempt.empty?
             answer_pusher(puzzle, next_attempt)
           end
